@@ -1,0 +1,36 @@
+name: Freebie Finder
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */3 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: freebie-finder
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scan sources and alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REDDIT_DEALS_THREAD_URL: ${{ vars.REDDIT_DEALS_THREAD_URL }}
+        run: python bot.py
+      - name: Save seen items
+        run: |
+          if [ -n "$(git status --porcelain -- seen.json)" ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add seen.json
+            git commit -m 'Update seen freebie items [skip ci]'
+            git push
+          fi
